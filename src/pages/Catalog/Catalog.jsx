@@ -1,46 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../../context/CartContext';
-import { mangaService, categoryService } from '../../services/api';
+import { mangaService } from '../../services/api'; // Importamos el servicio
 import './Catalog.css';
 
 const Catalog = () => {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [activeFilterId, setActiveFilterId] = useState('Todos'); 
-  const [loading, setLoading] = useState(true);
-
+  const [products, setProducts] = useState([]); // Estado para los productos reales
+  const [loading, setLoading] = useState(true); // Estado de carga
+  const [activeFilter, setActiveFilter] = useState('Todos');
   const { addToCart } = useCart();
 
+  // 1. Cargar productos de la API al iniciar
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchMangas = async () => {
       try {
-        setLoading(true);
-        const [mangasData, catsData] = await Promise.all([
-          mangaService.getAll(),
-          categoryService.getAll()
-        ]);
-
-        // Validación extra: Si la API falla y devuelve null, usamos array vacío
-        if (mangasData) setProducts(mangasData);
-        if (catsData) setCategories(catsData);
+        const data = await mangaService.getAll();
+        // Asegurarnos de que data sea un array (por si la API devuelve un objeto envuelto)
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          console.error("Formato de datos inesperado:", data);
+          setProducts([]);
+        }
       } catch (error) {
-        console.error("Error cargando catálogo:", error);
+        console.error("Error al cargar el catálogo:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchMangas();
   }, []);
 
-  const filteredProducts = activeFilterId === 'Todos' 
+  // 2. Filtrado (Adaptado para datos reales)
+  // Nota: Asumimos que tu backend devuelve una propiedad 'category' o 'categoryName'.
+  // Si tu backend devuelve categoryId, habría que mapear o filtrar por ID.
+  const filteredProducts = activeFilter === 'Todos' 
     ? products 
-    : products.filter(p => p.categoryId === activeFilterId || p.CategoryId === activeFilterId); 
+    : products.filter(p => {
+        // Ajusta 'categoryName' según cómo venga exactamente en tu JSON del backend
+        const catName = p.category?.name || p.categoryName || 'Sin Categoría'; 
+        return catName.toLowerCase() === activeFilter.toLowerCase();
+      });
 
-  if (loading) return <div style={{padding: '4rem', textAlign: 'center'}}>Cargando catálogo...</div>;
+  if (loading) {
+    return (
+      <div className="catalog-container" style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
+        <h2>Cargando catálogo...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="catalog-container">
+      
+      {/* HERO BANNER */}
       <section className="cat-hero">
         <div className="cat-hero-left">
           <div className="cat-title-box">
@@ -49,84 +62,85 @@ const Catalog = () => {
         </div>
         <div className="cat-hero-right">
           <img 
-            src="https://images.unsplash.com/photo-1612163554047-98105110c04b?q=80&w=1920&auto=format&fit=crop" 
-            alt="Manga Shelf" 
+            src="/images/catalog/hero-banner.jpg" 
+            alt="Manga Close Up" 
             className="cat-hero-img" 
           />
         </div>
       </section>
 
       <div className="cat-layout">
+        
+        {/* SIDEBAR FILTER */}
         <aside className="cat-sidebar">
           <div className="filter-group">
             <h3 className="filter-title">CATEGORÍAS <span>-</span></h3>
             <ul className="filter-list">
-              <li 
-                className={`filter-item ${activeFilterId === 'Todos' ? 'active' : ''}`}
-                onClick={() => setActiveFilterId('Todos')}
-              >
-                Todos
-              </li>
-              {categories.map(cat => (
+              {/* Puedes hacer esto dinámico también si traes las categorías de la API */}
+              {['Todos', 'Shonen', 'Seinen', 'Shojo', 'Kodomo'].map(cat => (
                 <li 
-                  key={cat.id || cat.Id}
-                  className={`filter-item ${activeFilterId === (cat.id || cat.Id) ? 'active' : ''}`}
-                  onClick={() => setActiveFilterId(cat.id || cat.Id)}
+                  key={cat}
+                  className={`filter-item ${activeFilter === cat ? 'active' : ''}`}
+                  onClick={() => setActiveFilter(cat)}
                 >
-                  {cat.name || cat.Name}
+                  {cat}
                 </li>
               ))}
             </ul>
           </div>
         </aside>
 
+        {/* PRODUCT GRID */}
         <section className="cat-grid-area">
           <div className="cat-controls">
-            <span style={{color: '#888'}}>Mostrando {filteredProducts.length} resultados</span>
+            <span style={{marginRight: 'auto', color: '#666'}}>
+              Mostrando {filteredProducts.length} resultados
+            </span>
+            <select className="sort-select">
+              <option>Ordenar por: Relevancia</option>
+              <option>Precio: Menor a Mayor</option>
+              <option>Precio: Mayor a Menor</option>
+            </select>
           </div>
 
           {filteredProducts.length === 0 ? (
-            <p>No se encontraron mangas.</p>
+            <p>No se encontraron mangas en esta categoría.</p>
           ) : (
             <div className="product-grid">
-              {filteredProducts.map((product) => {
-                // Preparamos los datos seguros
-                const safePrice = product.price || product.Price || 0;
-                // Usamos placehold.co que es más estable
-                const safeImage = product.imageUrl || product.ImageUrl || 'https://placehold.co/220x330?text=Sin+Imagen';
-
-                return (
-                  <div key={product.id || product.Id} className="product-card">
-                    <div className="card-image-container">
-                      <img 
-                        src={safeImage} 
-                        alt={product.title || product.Title} 
-                        className="card-img" 
-                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/220x330?text=Error+Carga'; }}
-                      />
-                      
-                      <button 
-                        className="add-to-cart-btn"
-                        onClick={() => addToCart({
-                          id: product.id || product.Id,
-                          title: product.title || product.Title,
-                          price: safePrice, // Enviamos precio validado
-                          image: safeImage
-                        })}
-                      >
-                        AGREGAR
-                      </button>
-                    </div>
-                    <div className="card-info">
-                      <h3 className="card-title">{product.title || product.Title}</h3>
-                      <p className="card-price">S/ {safePrice.toFixed(2)}</p>
-                    </div>
+              {filteredProducts.map((product) => (
+                <div key={product.id} className="product-card">
+                  <div className="card-image-container">
+                    {/* OJO: Tu backend usa 'imageUrl' en el POST, 
+                      así que asumimos que devuelve 'imageUrl' en el GET.
+                      Si la imagen viene rota, verifica si el campo se llama 'image' o 'imageUrl'.
+                    */}
+                    <img 
+                      src={product.imageUrl || product.image || '/images/placeholder.jpg'} 
+                      alt={product.title} 
+                      className="card-img"
+                      onError={(e) => { e.target.src = 'https://via.placeholder.com/220x330?text=No+Image'; }} 
+                    />
+                    
+                    <button 
+                      className="add-to-cart-btn"
+                      onClick={() => addToCart(product)}
+                    >
+                      Agregar al Carrito
+                    </button>
                   </div>
-                );
-              })}
+                  <div className="card-info">
+                    <h3 className="card-title">{product.title}</h3>
+                    {/* Verificamos que price sea un número antes de toFixed */}
+                    <p className="card-price">
+                      S/ {typeof product.price === 'number' ? product.price.toFixed(2) : product.price}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
+
       </div>
     </div>
   );
