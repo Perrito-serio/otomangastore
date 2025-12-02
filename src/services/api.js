@@ -42,7 +42,12 @@ const apiFetch = async (endpoint, options = {}) => {
 /* --- SERVICIOS --- */
 
 export const authService = {
+  // Login existente
   loginAdmin: (creds) => apiFetch("/Auth/admin/login", { method: "POST", body: JSON.stringify(creds) }),
+  
+  // NUEVO: Registro de Admin
+  registerAdmin: (data) => apiFetch("/Auth/admin/register", { method: "POST", body: JSON.stringify(data) }),
+  
   logout: () => apiFetch("/Auth/logout", { method: "POST" }),
   checkAuth: () => apiFetch("/Auth/check-auth"),
 };

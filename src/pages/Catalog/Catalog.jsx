@@ -1,32 +1,46 @@
-import React, { useState } from 'react';
-import { useCart } from '../../context/CartContext'; // Importamos el hook del carrito
+import React, { useState, useEffect } from 'react';
+import { useCart } from '../../context/CartContext';
+import { mangaService, categoryService } from '../../services/api';
 import './Catalog.css';
 
-// Mock Data inspirado en MyAnimeList
-const MOCK_PRODUCTS = [
-  { id: 1, title: 'Berserk Vol. 1', price: 65.00, category: 'Seinen', image: 'https://cdn.myanimelist.net/images/manga/1/157897.jpg' },
-  { id: 2, title: 'One Piece Vol. 100', price: 45.00, category: 'Shonen', image: 'https://cdn.myanimelist.net/images/manga/3/55381.jpg' },
-  { id: 3, title: 'Vagabond Vol. 5', price: 58.00, category: 'Seinen', image: 'https://cdn.myanimelist.net/images/manga/1/259079.jpg' },
-  { id: 4, title: 'Oyasumi Punpun', price: 42.00, category: 'Drama', image: 'https://cdn.myanimelist.net/images/manga/3/164420.jpg' },
-  { id: 5, title: 'Monster Vol. 1', price: 55.00, category: 'Seinen', image: 'https://cdn.myanimelist.net/images/manga/3/258224.jpg' },
-  { id: 6, title: 'Fullmetal Alchemist', price: 48.00, category: 'Shonen', image: 'https://cdn.myanimelist.net/images/manga/3/243675.jpg' },
-  { id: 7, title: 'Uzurnaki (Junji Ito)', price: 70.00, category: 'Horror', image: 'https://cdn.myanimelist.net/images/manga/3/54525.jpg' },
-  { id: 8, title: 'Chainsaw Man', price: 35.00, category: 'Shonen', image: 'https://cdn.myanimelist.net/images/manga/3/216464.jpg' },
-];
-
 const Catalog = () => {
-  const [activeFilter, setActiveFilter] = useState('Todos');
-  const { addToCart } = useCart(); // Extraemos la función para agregar
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [activeFilterId, setActiveFilterId] = useState('Todos'); 
+  const [loading, setLoading] = useState(true);
 
-  // Filtrado simple
-  const filteredProducts = activeFilter === 'Todos' 
-    ? MOCK_PRODUCTS 
-    : MOCK_PRODUCTS.filter(p => p.category === activeFilter);
+  const { addToCart } = useCart();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [mangasData, catsData] = await Promise.all([
+          mangaService.getAll(),
+          categoryService.getAll()
+        ]);
+
+        // Validación extra: Si la API falla y devuelve null, usamos array vacío
+        if (mangasData) setProducts(mangasData);
+        if (catsData) setCategories(catsData);
+      } catch (error) {
+        console.error("Error cargando catálogo:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const filteredProducts = activeFilterId === 'Todos' 
+    ? products 
+    : products.filter(p => p.categoryId === activeFilterId || p.CategoryId === activeFilterId); 
+
+  if (loading) return <div style={{padding: '4rem', textAlign: 'center'}}>Cargando catálogo...</div>;
 
   return (
     <div className="catalog-container">
-      
-      {/* 1. HERO BANNER */}
       <section className="cat-hero">
         <div className="cat-hero-left">
           <div className="cat-title-box">
@@ -35,78 +49,84 @@ const Catalog = () => {
         </div>
         <div className="cat-hero-right">
           <img 
-            src="/images/catalog/hero-banner.jpg" 
-            alt="Manga Close Up" 
+            src="https://images.unsplash.com/photo-1612163554047-98105110c04b?q=80&w=1920&auto=format&fit=crop" 
+            alt="Manga Shelf" 
             className="cat-hero-img" 
           />
         </div>
       </section>
 
       <div className="cat-layout">
-        
-        {/* 2. SIDEBAR FILTER */}
         <aside className="cat-sidebar">
           <div className="filter-group">
-            <h3 className="filter-title">MANGAS <span>-</span></h3>
+            <h3 className="filter-title">CATEGORÍAS <span>-</span></h3>
             <ul className="filter-list">
-              {['Todos', 'Shonen', 'Seinen', 'Shojo', 'Horror', 'Drama'].map(cat => (
+              <li 
+                className={`filter-item ${activeFilterId === 'Todos' ? 'active' : ''}`}
+                onClick={() => setActiveFilterId('Todos')}
+              >
+                Todos
+              </li>
+              {categories.map(cat => (
                 <li 
-                  key={cat}
-                  className={`filter-item ${activeFilter === cat ? 'active' : ''}`}
-                  onClick={() => setActiveFilter(cat)}
+                  key={cat.id || cat.Id}
+                  className={`filter-item ${activeFilterId === (cat.id || cat.Id) ? 'active' : ''}`}
+                  onClick={() => setActiveFilterId(cat.id || cat.Id)}
                 >
-                  {cat}
+                  {cat.name || cat.Name}
                 </li>
               ))}
             </ul>
           </div>
-          
-          <div className="filter-group">
-            <h3 className="filter-title">ANIMES <span>+</span></h3>
-          </div>
-          
-          <div className="filter-group">
-            <h3 className="filter-title">NOVELAS LIGERAS <span>+</span></h3>
-          </div>
         </aside>
 
-        {/* 3. PRODUCT GRID */}
         <section className="cat-grid-area">
           <div className="cat-controls">
-            <select className="sort-select">
-              <option>Ordenar por: Más relevantes</option>
-              <option>Precio: Menor a Mayor</option>
-              <option>Precio: Mayor a Menor</option>
-            </select>
+            <span style={{color: '#888'}}>Mostrando {filteredProducts.length} resultados</span>
           </div>
 
-          <div className="product-grid">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="product-card">
-                <div className="card-image-container">
-                  <img src={product.image} alt={product.title} className="card-img" />
-                  
-                  {/* Botón Funcional */}
-                  <button 
-                    className="add-to-cart-btn"
-                    onClick={() => addToCart(product)}
-                  >
-                    Agregar al Carrito
-                  </button>
-                </div>
-                <div className="card-info">
-                  <h3 className="card-title">{product.title}</h3>
-                  <p className="card-price">S/ {product.price.toFixed(2)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {filteredProducts.length === 0 ? (
+            <p>No se encontraron mangas.</p>
+          ) : (
+            <div className="product-grid">
+              {filteredProducts.map((product) => {
+                // Preparamos los datos seguros
+                const safePrice = product.price || product.Price || 0;
+                // Usamos placehold.co que es más estable
+                const safeImage = product.imageUrl || product.ImageUrl || 'https://placehold.co/220x330?text=Sin+Imagen';
 
-          <div className="load-more-container">
-            <button className="btn-load-more">CARGAR MÁS</button>
-          </div>
+                return (
+                  <div key={product.id || product.Id} className="product-card">
+                    <div className="card-image-container">
+                      <img 
+                        src={safeImage} 
+                        alt={product.title || product.Title} 
+                        className="card-img" 
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/220x330?text=Error+Carga'; }}
+                      />
+                      
+                      <button 
+                        className="add-to-cart-btn"
+                        onClick={() => addToCart({
+                          id: product.id || product.Id,
+                          title: product.title || product.Title,
+                          price: safePrice, // Enviamos precio validado
+                          image: safeImage
+                        })}
+                      >
+                        AGREGAR
+                      </button>
+                    </div>
+                    <div className="card-info">
+                      <h3 className="card-title">{product.title || product.Title}</h3>
+                      <p className="card-price">S/ {safePrice.toFixed(2)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
-
       </div>
     </div>
   );

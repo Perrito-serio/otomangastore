@@ -1,8 +1,7 @@
-// src/pages/Admin/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
 import './AdminPanel.css';
 import { FaFileExcel, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
-// Importamos nuestros nuevos servicios
+// Importamos los servicios corregidos
 import { mangaService, authorService, categoryService } from '../../services/api';
 
 const AdminPanel = () => {
@@ -20,14 +19,12 @@ const AdminPanel = () => {
     imageUrl: ''
   });
 
-  // 1. Cargar datos reales al iniciar
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      // Cargamos todo en paralelo
       const [mangasData, authorsData, catsData] = await Promise.all([
         mangaService.getAll(),
         authorService.getAll(),
@@ -35,10 +32,13 @@ const AdminPanel = () => {
       ]);
 
       if (mangasData) setProducts(mangasData);
-      if (authorsData) setAuthors(authorsData);
-      if (catsData) setCategories(catsData);
+      // Aseguramos que sea un array por si la API devuelve null o estructura diferente
+      if (authorsData) setAuthors(Array.isArray(authorsData) ? authorsData : []);
+      if (catsData) setCategories(Array.isArray(catsData) ? catsData : []);
+      
     } catch (error) {
       console.error("Error cargando datos:", error);
+      // No mostramos alerta aquí para no ser invasivos al cargar
     }
   };
 
@@ -48,16 +48,28 @@ const AdminPanel = () => {
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
+
+    // 1. VALIDACIÓN PREVIA (Evita el Error 500)
+    if (!newProduct.authorId || !newProduct.categoryId) {
+      alert("⚠️ Por favor selecciona un Autor y una Categoría válidos.");
+      return;
+    }
+
     try {
-      // Enviamos al backend .NET
-      await mangaService.create({
-        ...newProduct,
+      // 2. CONVERSIÓN DE DATOS
+      const payload = {
+        title: newProduct.title,
         price: parseFloat(newProduct.price),
         stock: parseInt(newProduct.stock),
-        // Asegúrate de enviar los IDs como números si tu backend lo pide
-        authorId: parseInt(newProduct.authorId),
-        categoryId: parseInt(newProduct.categoryId)
-      });
+        // Convertimos a entero. Si fallara, la validación de arriba nos protege
+        authorId: parseInt(newProduct.authorId), 
+        categoryId: parseInt(newProduct.categoryId),
+        imageUrl: newProduct.imageUrl
+      };
+
+      console.log("Enviando producto:", payload); // Para depuración
+
+      await mangaService.create(payload);
       
       alert("¡Manga creado exitosamente!");
       loadData(); // Recargar la tabla
@@ -65,127 +77,105 @@ const AdminPanel = () => {
       // Limpiar form
       setNewProduct({ title: '', price: '', stock: '', authorId: '', categoryId: '', imageUrl: '' });
     } catch (error) {
-      alert("Error al crear manga");
+      console.error(error);
+      alert(`Error al crear manga: ${error.message}`);
     }
-  };
-
-  const handleExportExcel = () => {
-    // Usamos la nueva función del servicio
-    mangaService.exportExcel();
   };
 
   return (
     <div className="admin-container">
       <div className="admin-header">
         <h1 className="admin-title">PANEL DE ADMINISTRACIÓN</h1>
-        <button className="btn-export" onClick={handleExportExcel}>
+        <button className="btn-export" onClick={() => mangaService.exportExcel()}>
           <FaFileExcel /> Exportar Reporte
         </button>
       </div>
 
-      {/* FORMULARIO DE AGREGAR */}
+      {/* FORMULARIO */}
       <div className="admin-form-card">
         <h3><FaPlus /> Agregar Nuevo Manga</h3>
         <form onSubmit={handleAddProduct}>
           <div className="form-row">
             <input 
-              type="text" 
-              name="title" 
-              placeholder="Título del Manga" 
-              className="admin-input" 
-              value={newProduct.title}
-              onChange={handleInputChange}
-              required
+              type="text" name="title" placeholder="Título" className="admin-input" 
+              value={newProduct.title} onChange={handleInputChange} required
             />
             <input 
-              type="number" 
-              name="price" 
-              placeholder="Precio (S/)" 
-              className="admin-input" 
-              value={newProduct.price}
-              onChange={handleInputChange}
-              required
+              type="number" name="price" placeholder="Precio (S/)" className="admin-input" 
+              value={newProduct.price} onChange={handleInputChange} required
             />
           </div>
           
           <div className="form-row">
-            {/* SELECTOR DE AUTORES (Desde BD) */}
+            {/* SELECTOR AUTORES: Maneja id o Id */}
             <select 
-              name="authorId" 
-              className="admin-input"
-              value={newProduct.authorId}
-              onChange={handleInputChange}
-              required
+              name="authorId" className="admin-input"
+              value={newProduct.authorId} onChange={handleInputChange} required
             >
-              <option value="">Seleccionar Autor</option>
+              <option value="">-- Seleccionar Autor --</option>
               {authors.map(auth => (
-                <option key={auth.id} value={auth.id}>{auth.name}</option>
+                <option key={auth.id || auth.Id} value={auth.id || auth.Id}>
+                  {auth.name || auth.Name}
+                </option>
               ))}
             </select>
 
-            {/* SELECTOR DE CATEGORÍAS (Desde BD) */}
+            {/* SELECTOR CATEGORÍAS */}
             <select 
-              name="categoryId" 
-              className="admin-input"
-              value={newProduct.categoryId}
-              onChange={handleInputChange}
-              required
+              name="categoryId" className="admin-input"
+              value={newProduct.categoryId} onChange={handleInputChange} required
             >
-              <option value="">Seleccionar Categoría</option>
+              <option value="">-- Seleccionar Categoría --</option>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                <option key={cat.id || cat.Id} value={cat.id || cat.Id}>
+                  {cat.name || cat.Name}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="form-row">
             <input 
-              type="number" 
-              name="stock" 
-              placeholder="Stock Inicial" 
-              className="admin-input"
-              value={newProduct.stock}
-              onChange={handleInputChange} 
+              type="number" name="stock" placeholder="Stock" className="admin-input"
+              value={newProduct.stock} onChange={handleInputChange} required
             />
             <input 
-              type="text" 
-              name="imageUrl"
-              placeholder="URL de Imagen" 
-              className="admin-input"
-              value={newProduct.imageUrl}
-              onChange={handleInputChange} 
+              type="text" name="imageUrl" placeholder="URL Imagen" className="admin-input"
+              value={newProduct.imageUrl} onChange={handleInputChange} 
             />
           </div>
+          
           <button type="submit" className="btn-save">GUARDAR PRODUCTO</button>
         </form>
       </div>
 
-      {/* TABLA DE PRODUCTOS (Datos Reales) */}
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Título</th>
-            <th>Precio</th>
-            <th>Stock</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map(product => (
-            <tr key={product.id}>
-              <td>{product.id}</td>
-              <td>{product.title}</td>
-              <td>S/ {product.price}</td>
-              <td>{product.stock}</td>
-              <td>
-                <button className="btn-action btn-edit"><FaEdit /></button>
-                <button className="btn-action btn-delete"><FaTrash /></button>
-              </td>
+      {/* TABLA - Solo visualización básica */}
+      <div className="admin-table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Título</th>
+              <th>Precio</th>
+              <th>Stock</th>
+              <th>Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {products.map(product => (
+              <tr key={product.id || product.Id}>
+                <td>{product.id || product.Id}</td>
+                <td>{product.title || product.Title}</td>
+                <td>S/ {(product.price || product.Price || 0).toFixed(2)}</td>
+                <td>{product.stock || product.Stock}</td>
+                <td>
+                  <button className="btn-action btn-delete"><FaTrash /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

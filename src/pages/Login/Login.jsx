@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Login.css';
+// Importamos el servicio de autenticación.
+import { authService } from '../../services/api';
 
 const Login = () => {
+  const navigate = useNavigate(); // Hook para poder redirigir
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [error, setError] = useState(''); // Estado para mostrar errores en pantalla
 
   const handleChange = (e) => {
     setFormData({
@@ -15,10 +19,29 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login intent:', formData);
-    // Aquí conectarás con tu API .NET
+    setError(''); // Limpiar errores previos
+    console.log('Intentando iniciar sesión...', formData);
+
+    try {
+      // 1. Enviamos las credenciales al Backend
+      const data = await authService.loginAdmin(formData);
+
+      // 2. Si hay éxito, guardamos el usuario/token en el navegador
+      if (data && data.token) {
+        localStorage.setItem('user', JSON.stringify(data));
+        
+        // 3. Redirigimos al Panel de Administración
+        alert("¡Bienvenido Senpai!");
+        navigate('/admin');
+      } else {
+        setError("Error: No se recibió un token válido.");
+      }
+    } catch (err) {
+      console.error("Error en login:", err);
+      setError("Credenciales incorrectas o fallo en el servidor.");
+    }
   };
 
   return (
@@ -40,6 +63,9 @@ const Login = () => {
         <div className="auth-form-wrapper">
           <h1 className="auth-title">INICIAR SESIÓN</h1>
           <p className="auth-subtitle">Ingresa tus credenciales para acceder</p>
+
+          {/* Mensaje de error si falla el login */}
+          {error && <div style={{color: 'red', marginBottom: '1rem', textAlign: 'center'}}>{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">

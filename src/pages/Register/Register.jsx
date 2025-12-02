@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import './Register.css'; // Asegúrate de copiar el CSS de Login aquí
+import { Link, useNavigate } from 'react-router-dom';
+import './Register.css';
+import { authService } from '../../services/api';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -17,18 +20,41 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(''); // Limpiar errores previos
+
+    // 1. Validación básica de contraseñas
     if (formData.password !== formData.confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      setError("Las contraseñas no coinciden.");
       return;
     }
-    console.log('Register intent:', formData);
-    // Conectar a API .NET
+
+    console.log('Intentando registrar admin:', formData);
+
+    try {
+      // 2. Preparamos los datos para el backend (quitamos confirmPassword)
+      const dataToSend = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      };
+
+      // 3. Llamada a la API
+      await authService.registerAdmin(dataToSend);
+      
+      // 4. Éxito
+      alert("¡Cuenta de Administrador creada con éxito! Ahora puedes iniciar sesión.");
+      navigate('/login');
+
+    } catch (err) {
+      console.error("Error en registro:", err);
+      // Muestra el mensaje de error que venga del backend o uno genérico
+      setError(err.message || "Error al registrar. Verifica los datos o intenta más tarde.");
+    }
   };
 
   return (
-    // Agregamos la clase 'register-mode' si queremos invertir el layout
     <div className="auth-container register-mode">
       
       {/* Lado Imagen */}
@@ -39,15 +65,18 @@ const Register = () => {
         />
         <div className="auth-overlay">
           <h2>ÚNETE A LA LEGIÓN</h2>
-          <p>Descubre ofertas exclusivas, guarda tus favoritos y mucho más.</p>
+          <p>Registra una cuenta de Administrador para gestionar la tienda.</p>
         </div>
       </div>
 
       {/* Lado Formulario */}
       <div className="auth-form-side">
         <div className="auth-form-wrapper">
-          <h1 className="auth-title">CREAR CUENTA</h1>
-          <p className="auth-subtitle">Completa tus datos para comenzar</p>
+          <h1 className="auth-title">CREAR ADMIN</h1>
+          <p className="auth-subtitle">Datos para el panel de control</p>
+
+          {/* Mensaje de error visual */}
+          {error && <div style={{color: 'red', marginBottom: '1rem', textAlign: 'center'}}>{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
@@ -105,11 +134,11 @@ const Register = () => {
             <div className="form-group">
               <label style={{display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem'}}>
                 <input type="checkbox" required /> 
-                Acepto los <a href="#" style={{color: '#ff6b35'}}>Términos y Condiciones</a>
+                Confirmo que soy personal autorizado
               </label>
             </div>
 
-            <button type="submit" className="auth-btn">REGISTRARSE</button>
+            <button type="submit" className="auth-btn">REGISTRAR ADMIN</button>
           </form>
 
           <div className="auth-footer">

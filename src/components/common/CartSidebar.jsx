@@ -16,13 +16,11 @@ const CartSidebar = () => {
 
   return (
     <>
-      {/* Overlay Oscuro */}
       <div 
         className={`cart-overlay ${isCartOpen ? 'open' : ''}`} 
         onClick={closeCart}
       />
 
-      {/* Panel Lateral */}
       <div className={`cart-sidebar ${isCartOpen ? 'open' : ''}`}>
         <div className="cart-header">
           <h2>TU CARRITO</h2>
@@ -41,11 +39,13 @@ const CartSidebar = () => {
             cartItems.map(item => (
               <div key={item.id} className="cart-item">
                 <div className="item-img">
-                  <img src={item.image} alt={item.title} />
+                  {/* Validación de imagen */}
+                  <img src={item.image || 'https://placehold.co/70x100?text=No+Img'} alt={item.title} />
                 </div>
                 <div className="item-details">
                   <h4>{item.title}</h4>
-                  <p className="item-price">S/ {item.price.toFixed(2)}</p>
+                  {/* CORRECCIÓN PRINCIPAL AQUÍ: (item.price || 0) */}
+                  <p className="item-price">S/ {(item.price || 0).toFixed(2)}</p>
                   
                   <div className="item-controls">
                     <div className="qty-selector">
@@ -70,7 +70,8 @@ const CartSidebar = () => {
           <div className="cart-footer">
             <div className="cart-total">
               <span>TOTAL:</span>
-              <span className="total-amount">S/ {cartTotal.toFixed(2)}</span>
+              {/* Validación del total */}
+              <span className="total-amount">S/ {(cartTotal || 0).toFixed(2)}</span>
             </div>
             <button className="checkout-btn">
               PROCEDER AL PAGO
